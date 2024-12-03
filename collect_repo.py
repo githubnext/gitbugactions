@@ -53,7 +53,6 @@ class CollectReposStatic(RepoStrategy):
         }
 
         repo_clone = clone_repo(repo.clone_url, repo_path)
-
         try:
             data["clone_success"] = True
 
@@ -64,14 +63,17 @@ class CollectReposStatic(RepoStrategy):
             data["actions_test_build_tools"] = [x.get_build_tool() for x in actions.test_workflows]
             actions.save_workflows()
 
+            print(data)
+            print(len(actions.test_workflows))
             if len(actions.test_workflows) == 1:
                 logging.info(f"Running actions for {repo.full_name}")
-
                 # Act creates names for the containers by hashing the content of the workflows
                 # To avoid conflicts between threads, we randomize the name
                 actions.test_workflows[0].doc["name"] = str(uuid.uuid4())
                 actions.save_workflows()
 
+                logging.warning(f"Skipping running")
+                return
                 act_cache_dir = ActCacheDirManager.acquire_act_cache_dir()
                 try:
                     act_run = actions.run_workflow(
