@@ -65,31 +65,30 @@ class CollectReposStatic(RepoStrategy):
 
             print(data)
             print(len(actions.test_workflows))
-            if len(actions.test_workflows) == 1:
-                logging.info(f"Running actions for {repo.full_name}")
+            print([x.path for x in actions.test_workflows])
+            print([x.path for x in actions.workflows])
+            for wf in actions.workflows:
                 # Act creates names for the containers by hashing the content of the workflows
                 # To avoid conflicts between threads, we randomize the name
-                actions.test_workflows[0].doc["name"] = str(uuid.uuid4())
-                actions.save_workflows()
+                try:
+                    wf[0].doc["name"] = str(uuid.uuid4())
+                except TypeError as err:
+                    print(f"WARNING: {err}")
+            actions.save_workflows()
 
-                logging.warning(f"Skipping running")
-                return
+            for wf in actions.workflows:
+                logging.info(f"Running workflow '{Path(wf.path).name}' for '{repo.full_name}'")
                 act_cache_dir = ActCacheDirManager.acquire_act_cache_dir()
                 try:
-                    act_run = actions.run_workflow(
-                        actions.test_workflows[0], act_cache_dir=act_cache_dir
-                    )
+                    act_run = actions.run_workflow(wf, act_cache_dir=act_cache_dir)
                 finally:
                     ActCacheDirManager.return_act_cache_dir(act_cache_dir)
 
                 data["actions_successful"] = not act_run.failed
                 data["actions_run"] = act_run.asdict()
-
-            delete_repo_clone(repo_clone)
-            self.save_data(data, repo)
         except Exception as e:
             logging.error(f"Error while processing {repo.full_name}: {traceback.format_exc()}")
-
+        finally:
             delete_repo_clone(repo_clone)
             self.save_data(data, repo)
 
